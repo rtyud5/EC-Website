@@ -1,0 +1,254 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────
+
+enum UserRole {
+  USER
+  ADMIN
+  SELLER
+}
+
+enum ProductStatus {
+  ACTIVE
+  INACTIVE
+  DRAFT
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentProvider {
+  PAYOS
+  COD
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+enum AIModelType {
+  RECOMMENDATION
+  CHATBOT
+  DEMAND_FORECAST
+  PRODUCT_CLASSIFICATION
+  USER_BEHAVIOR_ANALYSIS
+}
+
+enum AIModelStatus {
+  ACTIVE
+  INACTIVE
+  TRAINING
+  ERROR
+}
+
+enum CommissionStatus {
+  PENDING
+  PAID
+  CANCELLED
+}
+
+enum SellerStatus {
+  PENDING
+  APPROVED
+  SUSPENDED
+}
+
+// ─── Models ──────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      UserRole @default(USER)
+  avatar    String?
+  phone     String?
+  address   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cartItems CartItem[]
+  orders    Order[]
+  seller    Seller?
+}
+
+model Seller {
+  id             String       @id @default(uuid())
+  userId         String       @unique
+  shopName       String
+  description    String?
+  commissionRate Float        @default(5.0) // Phần trăm hoa hồng mặc định
+  status         SellerStatus @default(PENDING)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  user        User         @relation(fields: [userId], references: [id])
+  products    Product[]
+  commissions Commission[]
+}
+
+model Category {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  description String?
+  image       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products Product[]
+}
+
+model Product {
+  id          String        @id @default(uuid())
+  name        String
+  slug        String        @unique
+  description String?
+  price       Float
+  salePrice   Float?
+  stock       Int           @default(0)
+  images      String[]      @default([])
+  categoryId  String?
+  sellerId    String?
+  status      ProductStatus @default(ACTIVE)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  category   Category?   @relation(fields: [categoryId], references: [id])
+  seller     Seller?     @relation(fields: [sellerId], references: [id])
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+}
+
+model CartItem {
+  id        String   @id @default(uuid())
+  userId    String
+  productId String
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+}
+
+model Order {
+  id              String        @id @default(uuid())
+  userId          String
+  totalAmount     Float
+  discountAmount  Float         @default(0)
+  finalAmount     Float
+  status          OrderStatus   @default(PENDING)
+  paymentStatus   PaymentStatus @default(PENDING)
+  shippingName    String?
+  shippingPhone   String?
+  shippingAddress String?
+  note            String?
+  discountId      String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  user     User        @relation(fields: [userId], references: [id])
+  items    OrderItem[]
+  payment  Payment?
+  discount Discount?   @relation(fields: [discountId], references: [id])
+
+  commissions Commission[]
+}
+
+model OrderItem {
+  id        String @id @default(uuid())
+  orderId   String
+  productId String
+  quantity  Int
+  price     Float
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+}
+
+model Payment {
+  id              String          @id @default(uuid())
+  orderId         String          @unique
+  provider        PaymentProvider @default(PAYOS)
+  amount          Float
+  status          PaymentStatus   @default(PENDING)
+  transactionCode String?
+  paymentUrl      String?
+  paidAt          DateTime?
+  rawData         Json?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id])
+}
+
+model Discount {
+  id        String       @id @default(uuid())
+  code      String       @unique
+  type      DiscountType
+  value     Float        // Giá trị giảm (% hoặc số tiền cố định)
+  minOrder  Float?       // Đơn hàng tối thiểu
+  maxUses   Int          @default(0) // 0 = không giới hạn
+  usedCount Int          @default(0)
+  startsAt  DateTime
+  endsAt    DateTime
+  isActive  Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  orders Order[]
+}
+
+model Commission {
+  id       String           @id @default(uuid())
+  sellerId String
+  orderId  String
+  rate     Float            // Tỷ lệ hoa hồng (%)
+  amount   Float            // Số tiền hoa hồng
+  status   CommissionStatus @default(PENDING)
+  paidAt   DateTime?
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  seller Seller @relation(fields: [sellerId], references: [id])
+  order  Order  @relation(fields: [orderId], references: [id])
+}
+
+model AIModel {
+  id          String        @id @default(uuid())
+  name        String
+  type        AIModelType
+  provider    String
+  endpoint    String?
+  status      AIModelStatus @default(INACTIVE)
+  description String?
+  config      Json?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
