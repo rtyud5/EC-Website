@@ -11,8 +11,17 @@ export const app = express();
 
 // ─── Global Middlewares ─────────────────────────────────
 app.use(helmet());
+// CORS: hỗ trợ nhiều origin (phân cách bởi dấu phẩy trong env)
+const allowedOrigins = env.CORS_ORIGIN.split(",").map((o) => o.trim());
 app.use(cors({
-  origin: env.CORS_ORIGIN,
+  origin: (origin, callback) => {
+    // Cho phép request không có origin (mobile apps, curl, etc.)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(null, false);
+    }
+  },
   credentials: true,
 }));
 app.use(morgan("dev"));

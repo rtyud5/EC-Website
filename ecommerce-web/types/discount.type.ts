@@ -11,4 +11,5 @@ export type Discount = {
   startsAt: string;
   endsAt: string;
   isActive: boolean;
+  createdAt: string;
 };

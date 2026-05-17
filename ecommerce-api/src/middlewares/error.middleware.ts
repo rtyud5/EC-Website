@@ -1,11 +1,10 @@
 import type { Request, Response, NextFunction } from "express";
 import { ApiError } from "../utils/ApiError";
 import { ZodError } from "zod";
-import { Prisma } from "@prisma/client";
 
 /**
  * Global error handler middleware.
- * Xử lý ApiError, ZodError, Prisma errors.
+ * Xử lý ApiError, ZodError, Prisma errors, JWT errors.
  */
 export function errorMiddleware(
   error: Error,
@@ -14,6 +13,9 @@ export function errorMiddleware(
   _next: NextFunction
 ) {
   console.error(`[ERROR] ${error.name}: ${error.message}`);
+  if (process.env.NODE_ENV === "development") {
+    console.error(error.stack);
+  }
 
   // Custom ApiError
   if (error instanceof ApiError) {
@@ -32,15 +34,30 @@ export function errorMiddleware(
     });
   }
 
-  // Prisma known request error
-  if (error instanceof Prisma.PrismaClientKnownRequestError) {
-    if (error.code === "P2002") {
+  // JWT errors
+  if (error.name === "JsonWebTokenError") {
+    return res.status(401).json({
+      success: false,
+      message: "Token không hợp lệ",
+    });
+  }
+  if (error.name === "TokenExpiredError") {
+    return res.status(401).json({
+      success: false,
+      message: "Token đã hết hạn",
+    });
+  }
+
+  // Prisma known request error (dùng duck typing thay vì import trực tiếp)
+  if (error.name === "PrismaClientKnownRequestError") {
+    const prismaError = error as any;
+    if (prismaError.code === "P2002") {
       return res.status(409).json({
         success: false,
         message: "Dữ liệu đã tồn tại (trùng lặp)",
       });
     }
-    if (error.code === "P2025") {
+    if (prismaError.code === "P2025") {
       return res.status(404).json({
         success: false,
         message: "Không tìm thấy dữ liệu",
@@ -48,9 +65,19 @@ export function errorMiddleware(
     }
   }
 
+  // Prisma client initialization error (database chưa kết nối)
+  if (error.name === "PrismaClientInitializationError") {
+    return res.status(503).json({
+      success: false,
+      message: "Không thể kết nối database. Vui lòng thử lại sau.",
+    });
+  }
+
   // Lỗi không xác định
   return res.status(500).json({
     success: false,
-    message: "Lỗi hệ thống nội bộ",
+    message: process.env.NODE_ENV === "development"
+      ? `Lỗi hệ thống: ${error.message}`
+      : "Lỗi hệ thống nội bộ",
   });
 }

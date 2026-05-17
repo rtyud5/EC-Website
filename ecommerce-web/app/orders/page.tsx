@@ -1,33 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/auth.store";
+import { useOrders } from "@/hooks/useOrders";
 import { EmptyState } from "@/components/common/EmptyState";
 import { OrderStatusBadge } from "@/components/order/OrderStatusBadge";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import Link from "next/link";
-import type { Order } from "@/types/order.type";
 
 export default function OrdersPage() {
   const { isAuthenticated } = useAuthStore();
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!isAuthenticated()) return;
-
-    api.get("/orders")
-      .then((res) => setOrders(res.data.data || []))
-      .catch(() => setOrders([]))
-      .finally(() => setLoading(false));
-  }, []);
+  const { data: orders = [], isLoading } = useOrders();
 
   if (!isAuthenticated()) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-16 text-center">
         <p className="text-gray-500">Vui lòng đăng nhập để xem đơn hàng.</p>
-        <Link href="/login" className="mt-4 inline-block text-indigo-600 hover:underline">Đăng nhập</Link>
+        <Link href="/login" className="mt-4 inline-block text-orange-500 hover:underline">Đăng nhập</Link>
       </div>
     );
   }
@@ -36,7 +24,7 @@ export default function OrdersPage() {
     <div className="mx-auto max-w-4xl px-4 py-8">
       <h1 className="text-2xl font-bold text-gray-900">Đơn hàng của tôi</h1>
 
-      {loading ? (
+      {isLoading ? (
         <div className="mt-6 space-y-4">
           {Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="animate-pulse rounded-xl border border-gray-200 bg-white p-6">
@@ -50,13 +38,17 @@ export default function OrdersPage() {
         <div className="mt-8">
           <EmptyState message="Chưa có đơn hàng nào" icon="📋" />
           <div className="mt-6 text-center">
-            <Link href="/products" className="text-indigo-600 hover:underline">Bắt đầu mua sắm →</Link>
+            <Link href="/products" className="text-orange-500 hover:underline">Bắt đầu mua sắm →</Link>
           </div>
         </div>
       ) : (
         <div className="mt-6 space-y-4">
           {orders.map((order) => (
-            <div key={order.id} className="rounded-xl border border-gray-200 bg-white p-6 transition hover:border-indigo-200 hover:shadow-sm">
+            <Link
+              key={order.id}
+              href={`/orders/${order.id}`}
+              className="block rounded-xl border border-gray-200 bg-white p-6 transition hover:border-orange-200 hover:shadow-sm"
+            >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <span className="text-sm text-gray-500">Đơn hàng #{order.id.slice(-8).toUpperCase()}</span>
@@ -84,9 +76,9 @@ export default function OrdersPage() {
               {/* Total */}
               <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3">
                 <span className="text-sm text-gray-500">Tổng thanh toán</span>
-                <span className="text-lg font-bold text-indigo-600">{formatCurrency(order.finalAmount)}</span>
+                <span className="text-lg font-bold text-orange-500">{formatCurrency(order.finalAmount)}</span>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}

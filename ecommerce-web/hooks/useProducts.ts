@@ -16,7 +16,7 @@ const MOCK_PRODUCTS: Product[] = [
   { id: "8", name: "Đắc nhân tâm", slug: "dac-nhan-tam", price: 86000, salePrice: 68000, stock: 300, images: ["https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400"], status: "ACTIVE", category: { id: "6", name: "Sách", slug: "sach" } },
 ];
 
-export function useProducts(params?: { search?: string; categoryId?: string; page?: number; limit?: number }) {
+export function useProducts(params?: { search?: string; categoryId?: string; page?: number; limit?: number; sort?: string; minPrice?: number; maxPrice?: number }) {
   return useQuery({
     queryKey: ["products", params],
     queryFn: async () => {

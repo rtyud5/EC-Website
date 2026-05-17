@@ -9,7 +9,7 @@ export interface JwtPayload {
 /** Tạo JWT token */
 export function signToken(payload: JwtPayload): string {
   return jwt.sign(payload, env.JWT_SECRET, {
-    expiresIn: env.JWT_EXPIRES_IN,
+    expiresIn: env.JWT_EXPIRES_IN as any, // Cast vì jsonwebtoken types mới yêu cầu StringValue
   });
 }
 

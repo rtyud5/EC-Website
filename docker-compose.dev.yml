@@ -1,0 +1,75 @@
+version: "3.9"
+
+# Dùng để dev: docker-compose -f docker-compose.dev.yml up
+# Hot reload cho cả API và Web
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ecommerce-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ecommerce_dev
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: ecommerce-redis-dev
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+
+  api:
+    build:
+      context: ./ecommerce-api
+      dockerfile: Dockerfile.dev
+    container_name: ecommerce-api-dev
+    restart: unless-stopped
+    ports:
+      - "4001:4000"
+    environment:
+      NODE_ENV: development
+      PORT: 4000
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/ecommerce_dev?schema=public
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: dev_jwt_secret_not_for_production
+      CORS_ORIGIN: http://localhost:3001
+    volumes:
+      - ./ecommerce-api/src:/app/src      # Hot reload source
+      - ./ecommerce-api/prisma:/app/prisma
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  web:
+    build:
+      context: ./ecommerce-web
+      dockerfile: Dockerfile.dev
+    container_name: ecommerce-web-dev
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:4001/api
+    volumes:
+      - ./ecommerce-web/app:/app/app      # Hot reload
+      - ./ecommerce-web/components:/app/components
+      - ./ecommerce-web/hooks:/app/hooks
+      - ./ecommerce-web/store:/app/store
+    depends_on:
+      - api
+
+volumes:
+  postgres_dev_data:

@@ -1,0 +1,48 @@
+# Cursor Rules — EC Marketplace
+
+## Project
+C2C e-commerce marketplace (Shopee-style). TypeScript monorepo: Express API (`ecommerce-api/`) + Next.js 14 (`ecommerce-web/`). Vietnamese UI.
+
+## Stack
+- Backend: Express + Prisma + PostgreSQL + Redis + JWT + Zod
+- Frontend: Next.js 14 App Router + TailwindCSS + Zustand + React Query
+- Infra: Docker Compose + Nginx
+
+## Rules
+
+### General
+- Write TypeScript, no JavaScript
+- Vietnamese for all UI text (labels, messages, placeholders, errors)
+- English for code identifiers and comments
+- Use existing patterns — check `hooks/`, `store/`, `components/` before creating new
+
+### Backend (`ecommerce-api/`)
+- Module pattern: `src/modules/[name]/` → routes.ts, controller.ts, service.ts, validation.ts
+- Use `asyncHandler()` wrapper on all controller methods
+- Use `ApiError.badRequest/unauthorized/notFound()` for errors
+- Validate with Zod: `z.object({ body: z.object({...}), query: ..., params: ... })`
+- Response helpers: `ok(res, data)`, `created(res, data, message)`
+
+### Frontend (`ecommerce-web/`)
+- `"use client"` on all interactive components
+- Data fetching → React Query hooks in `hooks/` (NOT useEffect + useState)
+- Client state → Zustand stores in `store/` with persist middleware
+- Use `api` from `lib/api.ts` for HTTP calls (JWT auto-attached)
+- Auth cookies synced from Zustand store for Next.js middleware
+- TailwindCSS only, no CSS modules
+- Color: Orange for shop UI, Indigo for landing sections
+- Responsive: grid-cols-2 → sm:grid-cols-3 → lg:grid-cols-4 → xl:grid-cols-5
+
+### Naming
+- Components: PascalCase (`ProductCard.tsx`)
+- Hooks: camelCase with `use` prefix (`useProducts.ts`)
+- Stores: camelCase with `.store` suffix (`auth.store.ts`)
+- Types: camelCase with `.type` suffix (`product.type.ts`)
+- Routes: kebab-case in URLs
+
+### Key Files
+- DB schema: `ecommerce-api/prisma/schema.prisma`
+- API routes: `ecommerce-api/src/routes/index.ts`
+- Auth flow: `ecommerce-web/store/auth.store.ts` → `hooks/useAuth.ts`
+- API client: `ecommerce-web/lib/api.ts`
+- Route guard: `ecommerce-web/middleware.ts`
